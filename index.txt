@@ -1,0 +1,615 @@
+import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import Filter from "./Filter";
+
+import {
+  Col,
+  Container,
+  Row,
+  Card,
+  CardHeader,
+  CardBody,
+  Input,
+  DropdownItem,
+  DropdownMenu,
+  DropdownToggle,
+  UncontrolledDropdown,
+} from "reactstrap";
+
+import BreadCrumb from "../../Components/Common/BreadCrumb";
+import DeleteModal from "../../Components/Common/DeleteModal";
+
+//redux
+import TableContainer from "./TableContainer";
+import { useDispatch, useSelector } from "react-redux";
+
+import { assetViewListRequest, deleteAssetsRequest } from "../../store/actions";
+import IdleTimerContainer from "../../Components/Common/IdleTimerContainer";
+import Loader from "../../Components/Common/Loader";
+import { getRolesAndPermissions } from "../../helpers/backend_helper";
+import { AllRoles } from "../../helpers/AllRoles";
+import { Checkbox } from "../../Components/Common/Checkbox";
+import config from "../../config";
+const Asset = () => {
+  const dispatch = useDispatch();
+  const PAGINATION_START = 1;
+  const PER_PAGE = 10;
+  const searchOne = useLocation().search;
+  const owner = new URLSearchParams(searchOne).get("owner");
+  const roles = getRolesAndPermissions("roles");
+
+  const [selectedColumn, setSelectedColumn] = useState("");
+  const [selectedSort, setSelectedSort] = useState("");
+
+  const [clientIds, setClientIds] = useState(() => {
+    return JSON.parse(localStorage.getItem("clientIds")) || [];
+  });
+
+  const [filtersApplied, setFiltersApplied] = useState(() => {
+    return JSON.parse(localStorage.getItem("assetFilters")) || [];
+  });
+
+  const filterArr = [
+    {
+      assetNames: (filtersApplied.selectedAssetName || []).map(
+        (item) => item.value
+      ),
+      hostNames: (filtersApplied.selectedHostname || []).map(
+        (item) => item.value
+      ),
+      criticalities: (filtersApplied.selectedCriticality || []).map(
+        (item) => item.value
+      ),
+      hosting: (filtersApplied.selectedHosting || []).map(
+        (item) => item.value
+      ),
+      ips: (filtersApplied.selectedIp || []).map((item) => item.value),
+      assetUrls: (filtersApplied.selectedUrl || []).map((item) => item.value),
+      isAssetTested: filtersApplied.isAssetTested || "In",
+      selectedColumn: filtersApplied.selectedColumn,
+      selectedSort: filtersApplied.selectedSort,
+    },
+  ];
+
+  useEffect(() => {
+    dispatch(
+      assetViewListRequest({
+        page: PAGINATION_START,
+        size: PER_PAGE,
+        clientIds: clientIds,
+        ...filterArr[0],
+      })
+    );
+  }, []);
+
+  const [assets, setAssets] = useState([]);
+  // const [issueCount, setIssueCount] = useState([]);
+  const [paging, setPaging] = useState({
+    currentPage: 0,
+    recordCount: 0,
+    total: 0,
+  });
+  // const [selectedRows, setSelectedRows] = useState([]);
+
+
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [isAssetFilter, setIsAssetFilter] = useState(false);
+  const [assetId, setAssetId] = useState(null);
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
+  const [selectedRowsStr, setSelectedRowsStr] = useState([]);
+  var { assetList, loading } = useSelector((state) => ({
+    assetList: state.Asset?.assetViewList,
+    loading: state.Asset.loading,
+  }));
+
+  useEffect(() => {
+    if (assetList?.data) {
+      setAssets(assetList.data.data);
+    
+      // for (const i = 0; i <= assetList.data.data; i++) {
+      //   setIssueCount(assetList.data.data[i].findings);
+      // }
+      // setIssueCount(assetList.data.data.map((item) => item.findings.length));
+      setPaging({
+        currentPage: assetList.data.current_page,
+        recordCount: assetList.data.per_page,
+        total: assetList.data.total,
+        totalPages: assetList.data.last_page,
+      });
+
+      if ( isAssetFilter == true) {
+        setIsAssetFilter(false);
+      }
+     
+    }
+
+    if (
+      roles?.includes(AllRoles.Admin) ||
+      roles?.includes(AllRoles.Requestor) ||
+      roles?.includes(AllRoles.ClientAdmin) ||
+      roles?.includes(AllRoles.MasterAdmin)
+    ) {
+      console.log("first");
+      setShowDeleteButton(true);
+    }
+  }, [assetList]);
+
+  // const
+
+  // console.log("count", issueCount);
+
+  const onClickDelete = (assetId) => {
+    setAssetId(assetId);
+    setDeleteModal(true);
+  };
+
+  const handleDeleteRequest = () => {
+    if (assetId) {
+      dispatch(deleteAssetsRequest({ assetId: assetId }));
+      setDeleteModal(false);
+    }
+  };
+  const sendDataToParent = (rows) => {
+    let selectedIds = [];
+    selectedIds = rows.map((item) => item.original.id);
+    // setSelectedRows(selectedIds);
+    let str = "";
+    selectedIds.forEach(function (item, index) {
+      str += item+'_';
+    });
+    setSelectedRowsStr(btoa(encodeURIComponent(str)));
+  };
+  // const sendDataToParent = (rows) => {
+  //   let selectedIds = [];
+  //   selectedIds = rows.map((item) => item.original.id);
+  //   setSelectedRowsStr(selectedIds);
+  // };
+
+  const columns = React.useMemo(
+    () => [
+      {
+        id: "selection",
+        Header: ({ getToggleAllRowsSelectedProps }) => (
+          <Checkbox {...getToggleAllRowsSelectedProps()} />
+        ),
+        Cell: ({ row }) => (
+          <Checkbox
+            value={row.original.included}
+            {...row.getToggleRowSelectedProps()}
+          />
+        ),
+      },
+      {
+        Header: "S No.",
+        Cell: (props) => {
+          return props.row.index + 1;
+        },
+        canSort: true,
+        width: "5%",
+
+      },
+      {
+        Header: "Solution Name",
+        Cell: (props) => {
+          return (
+            <div style={{ wordWrap: "break-word", wordBreak: "break-all" }}>
+
+              {props.row.original ? props.row.original.solution_name : "NA"}
+            </div>
+          );
+        },
+        filterable: false,
+        width: "25%",
+
+      },
+      {
+        Header: "Hostname",
+        Cell: (props) => {
+          return props.row.original.hostname;
+        },
+        width: "10%",
+
+      },
+      {
+        Header: "IP",
+        Cell: (props) => {
+          return (
+            <div  style={{ wordWrap: "break-word", wordBreak: "break-all" }}>
+              {props.row.original ? props.row.original.ip_address : "NA"}
+            </div>
+          );
+        },
+        filterable: false,
+        width: "10%",
+
+      },
+      {
+        Header: "URL",
+        Cell: (props) => {
+          return (
+            <div style={{ wordWrap: "break-word", wordBreak: "break-all" }}>
+
+              {props.row.original.web_app_url
+                ? props.row.original.web_app_url                 
+                : "NA"}
+            </div>
+          );
+        },
+        filterable: false,
+        width: "10%",
+
+      },
+      // {
+      //   Header: "Criticality",
+      //   Cell: (props) => {
+      //     return (
+      //       <div>
+      //         {props.row.original ? props.row.original.asset_criticality : "NA"}
+      //       </div>
+      //     );
+      //   },
+      //   filterable: false,
+      // },
+     
+      // {
+      //   Header: "OS",
+      //   Cell: (props) => {
+      //     return (
+      //       <div>{props.row.original ? props.row.original.os_name : "NA"}</div>
+      //     );
+      //   },
+      //   filterable: false,
+      // },
+      // {
+      //   Header: "High",
+      //   Cell: (props) => {
+      //     return (
+      //       <div>{props.row.original ? props.row.original.db_name : "NA"}</div>
+      //     );
+      //   },
+      //   filterable: false,
+      // },
+      
+      {
+        Header: "High Count",
+        Cell: (props) => {
+          console.log("hiff",props);
+          return <div>{props.row.original ? props.row.original.high : 0}</div>;
+        },
+        filterable: false,
+        width: "5%",
+
+      },
+      {
+        Header: "Medium Count",
+        Cell: (props) => {
+          return <div>{props.row.original ? props.row.original.medium : 0}</div>;
+        },
+        filterable: false,
+        width: "5%",
+
+      },
+      {
+        Header: "Low Count",
+        Cell: (props) => {
+          return <div>{props.row.original ? props.row.original.low : 0}</div>;
+        },
+        filterable: false,
+        width: "5%",
+
+      },
+      {
+        Header: "Open Issue Count",
+        Cell: (props) => {
+          return <div>{props.row.original ? props.row.original.total : 0}</div>;
+        },
+        filterable: false,
+        width: "5%",
+
+      },
+      {
+        Header: "Actions",
+        Cell: (cellProps) => {
+          return (
+            <UncontrolledDropdown>
+              <DropdownToggle tag="a" id="dropdownMenuLink2" role="button">
+                <i className="ri-more-fill fs-17"></i>
+              </DropdownToggle>
+              <DropdownMenu>
+                <DropdownItem>
+                  <i className="ri-eye-line me-2 align-middle" />
+                  <Link to={`/assets/asset-view/${cellProps.row.original.id}`}>
+                    View
+                  </Link>
+                </DropdownItem>
+                {showDeleteButton && (
+                  <DropdownItem>
+                    <i className="ri-delete-bin-fill me-2 align-middle" />
+                    <Link
+                      className="remove-item-btn"
+                      onClick={() => {
+                        onClickDelete(cellProps.row.original.id);
+                      }}
+                      to="#"
+                    >
+                      Delete
+                    </Link>
+                  </DropdownItem>
+                )}
+              </DropdownMenu>
+            </UncontrolledDropdown>
+          );
+        },
+      },
+    ],
+    [showDeleteButton]
+  );
+
+  const [selectedAssetName, setSelectedAssetName] = useState([]);
+  const [selectedHostname, setSelectedHostname] = useState([]);
+  const [selectedCriticality, setSelectedCriticality] = useState([]);
+  const [selectedHosting, setSelectedHosting] = useState([]);
+  const [selectedIp, setSelectedIp] = useState([]);
+  const [selectedUrl, setSelectedUrl] = useState([]);
+  const [isAssetTested, setIsAssetTested] = useState("In");
+
+  const filterData = {
+    assetNames: selectedAssetName,
+    hostNames: selectedHostname,
+    criticalities: selectedCriticality,
+    hosting: selectedHosting,
+    ips: selectedIp,
+    assetUrls: selectedUrl,
+    isAssetTested: isAssetTested,
+    column: selectedColumn,
+    sort: selectedSort,
+  };
+
+  const assetFilter = (
+    selectedAssetName,
+    selectedHostname,
+    selectedCriticality,
+    selectedHosting,
+    selectedIp,
+    selectedUrl,
+    isAssetTested,
+    selectedColumn,
+    selectedSort
+  ) => {
+    setSelectedAssetName(
+      selectedAssetName.map((item) => {
+        return item.value;
+      })
+    );
+
+    setSelectedHostname(
+      selectedHostname.map((item) => {
+        return item.value;
+      })
+    );
+
+    setSelectedCriticality(
+      selectedCriticality.map((item) => {
+        return item.value;
+      })
+    );
+
+    setSelectedHosting(
+      selectedHosting.map((item) => {
+        return item.value;
+      })
+    );
+
+    setSelectedIp(
+      selectedIp.map((item) => {
+        return item.value;
+      })
+    );
+
+    setSelectedUrl(
+      selectedUrl.map((item) => {
+        return item.value;
+      })
+    );
+    setSelectedColumn(selectedColumn);
+    setSelectedSort(selectedSort);
+    setIsAssetTested(isAssetTested);
+  };
+
+  const toggleAssetFilter = () => {
+    setIsAssetFilter(!isAssetFilter);
+  };
+
+  const breadCrumbUrls = [{ name: "Home", url: "/" }];
+
+  document.title = config.TOOL_CAP_ABBR + " - Assets";
+  return (
+    <React.Fragment>
+      <div className="page-content">
+        <IdleTimerContainer />
+        <DeleteModal
+          show={deleteModal}
+          onDeleteClick={handleDeleteRequest}
+          onCloseClick={() => setDeleteModal(false)}
+          message="Are you sure you want to delete this asset?"
+        />
+        <Container fluid>
+          <BreadCrumb
+            title="Assets List"
+            pageTitle="Home"
+            breadCrumbUrls={breadCrumbUrls}
+          />
+
+          <Row>
+            <Col xxl={12}>
+              <Card>
+                <CardHeader className="border-0">
+                  <Row className="g-4 align-items-center">
+                    {/* <Col sm={3}>
+                      <div className="search-box">
+                        <Input
+                          type="text"
+                          className="form-control search"
+                          placeholder="Search for..."
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                        />
+                        <i className="ri-search-line search-icon"></i>
+                      </div>
+                    </Col> */}
+                    <div className="col-sm-auto ms-auto">
+                      <div className="hstack gap-2">
+                        <Link className="btn btn-info" title="Asset list download" style={{display: "table-cell"}} to="report/download-page/asset-list-download" target="_blank"><i className="ri-download-line align-bottom me-1"></i>
+                        </Link>
+                        <button
+                          type="button"
+                          title="Asset Filter"
+                          className="btn btn-info"
+                          onClick={toggleAssetFilter}
+                        >
+                          <i className="ri-filter-3-line align-bottom me-1"></i>
+                        </button>
+                        <Link
+                          to={`/assets/asset-issue/${selectedRowsStr}`}
+                          className="btn btn-warning"
+                          title="View asset findings"
+                          style={selectedRowsStr.length == 0 ? {pointerEvents: "none"} : null}
+                        >
+                          <i className="ri-alert-line align-bottom me-1"></i>
+                        </Link>
+                      </div>
+                    </div>
+                  </Row>
+                </CardHeader>
+                <CardBody>
+                   {/* {loading ? (
+                    <Loader />
+                  ) : (  */}
+                     {loading && <Loader />}
+                    <div>
+                      <TableContainer
+                        sendDataToParent={sendDataToParent}
+
+                        columns={columns}
+                        data={assets}
+                        isGlobalSearch={true}
+                        isGlobalFilter={true}
+                        isAddOptions={true}
+                        isAddUserList={true}
+                        isAddCustList={true}
+                        pageOptions={paging.totalPages}
+                        pageIndex={paging.currentPage}
+                        pageSize={paging.recordCount}
+                        canNextPage={
+                          paging.currentPage * paging.recordCount < paging.total
+                        }
+                        canPreviousPage={paging.currentPage > 1}
+                        className="custom-header-css"
+                        divclassName="table-responsive table-card mb-3"
+                        tableclassName="align-middle table-nowrap"
+                        theadclassName="table-light"
+                        nextPage={() => {
+                          dispatch(
+                            assetViewListRequest(
+                              owner && owner.length > 0
+                                ? {
+                                    page: paging.currentPage + 1,
+                                    size: paging.recordCount,
+                                    currentOwner: owner,
+                                    ...filterData,
+                                  }
+                                : {
+                                    page: paging.currentPage + 1,
+                                    size: paging.recordCount,
+                                    ...filterData,
+                                  }
+                            )
+                          );
+                        }}
+                        previousPage={() => {
+                          dispatch(
+                            assetViewListRequest(
+                              owner && owner.length > 0
+                                ? {
+                                    page: paging.currentPage - 1,
+                                    size: paging.recordCount,
+                                    currentOwner: owner,
+                                    ...filterData,
+                                  }
+                                : {
+                                    page: paging.currentPage - 1,
+                                    size: paging.recordCount,
+                                    ...filterData,
+                                  }
+                            )
+                          );
+                        }}
+                        gotoPage={(pageNumber) => {
+                          if (
+                            pageNumber <= 0 &&
+                            pageNumber > paging.totalPages
+                          ) {
+                            alert("This page doesn't exist");
+                          } else
+                            dispatch(
+                              assetViewListRequest(
+                                owner && owner.length > 0
+                                  ? {
+                                      page: pageNumber,
+                                      size: paging.recordCount,
+                                      currentOwner: owner,
+                                      ...filterData,
+                                    }
+                                  : {
+                                      page: pageNumber,
+                                      size: paging.recordCount,
+                                      ...filterData,
+                                    }
+                              )
+                            );
+                        }}
+                        setPageSize={(pageSize) => {
+                          dispatch(
+                            assetViewListRequest(
+                              owner && owner.length > 0
+                                ? {
+                                    page:
+                                      paging.total / pageSize <=
+                                      paging.currentPage
+                                        ? 1
+                                        : paging.currentPage,
+                                    size: pageSize,
+                                    currentOwner: owner,
+                                    ...filterData,
+                                  }
+                                : {
+                                    page:
+                                      paging.total / pageSize <=
+                                      paging.currentPage
+                                        ? 1
+                                        : paging.currentPage,
+                                    size: pageSize,
+                                    ...filterData,
+                                  }
+                            )
+                          );
+                        }}
+                      />
+                    </div>
+                  {/*   )}  */}
+                </CardBody>
+              </Card>
+            </Col>
+          </Row>
+        </Container>
+      </div>
+      <Filter
+        show={isAssetFilter}
+        onCloseClick={() => setIsAssetFilter(false)}
+        assetFilter={assetFilter}
+      />
+    </React.Fragment>
+  );
+};
+
+export default Asset;

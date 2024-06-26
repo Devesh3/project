@@ -1,0 +1,492 @@
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import ReactSelect from "react-select";
+import {
+  Offcanvas,
+  OffcanvasHeader,
+  OffcanvasBody,
+  Label,
+  Input,
+  Row,
+  Col,
+} from "reactstrap";
+import {assetFilterDropdownList} from "../../store/actions";
+import {assetViewListRequest} from "../../store/actions";
+
+const Filter = ({ show, onCloseClick , assetFilter}) => {
+
+  const objectToArray = (dropdown) => {
+    return Object.entries(dropdown).map(([key, value]) => (
+      { key,  value }
+    ));
+  }
+
+  const dispatch = useDispatch();
+
+  const [clientIds, setClientIds] = useState(() => {
+    return JSON.parse(localStorage.getItem('clientIds')) || []
+  });
+
+  const [filtersApplied, setFiltersApplied] = useState(() => {
+    return JSON.parse(localStorage.getItem('assetFilters')) || []
+  });
+
+  useEffect(() => {
+    dispatch(assetFilterDropdownList(`?clientIds=${clientIds}`));
+  }, []);
+
+  const [assetNameOptions, setAssetNameOptions] = useState([]);
+
+  const [hostnameOptions, setHostnameOptions] = useState([]);
+
+  const [criticalityOptions, setCriticalityOptions] = useState(() => {
+    return [
+            {'label':'Critical', 'value':'Critical'},
+            {'label':'Other', 'value':'Other'},
+            // {'label':'Low', 'value':'Low'},
+            ]
+  });
+
+  const [hostingOptions, setHostingOptions] = useState(() => {
+    return [
+            {'label':'Internet', 'value':0},
+            {'label':'Intranet', 'value':1},
+            {'label':'Other', 'value':2},
+            ]
+  });
+
+  const [ipOptions, setIpOptions] = useState([]);
+
+  const [assetUrlOptions, setAssetUrlOptions] = useState([]);
+
+  // 
+  const [selectedAssetName, setSelectedAssetName] = useState(() => {
+    return filtersApplied.selectedAssetName || []
+  });
+
+  const [selectedHostname, setSelectedHostname] = useState(() => {
+    return filtersApplied.selectedHostname || []
+  });
+
+  const [selectedCriticality, setSelectedCriticality] = useState(() => {
+    return filtersApplied.selectedCriticality || []
+  });
+
+  const [selectedHosting, setSelectedHosting] = useState(() => {
+    return filtersApplied.selectedHosting || []
+  });
+
+  const [selectedIp, setSelectedIp] = useState(() => {
+    return filtersApplied.selectedIp || []
+  });
+
+  const [selectedUrl, setSelectedUrl] = useState(() => {
+    return filtersApplied.selectedUrl || []
+  });
+
+  const [isAssetTested, setIsAssetTested] = useState(() => {
+    return filtersApplied.isAssetTested || 'In'
+  });
+  const [selectedColumn, setSelectedColumn] = useState(() => {
+    return filtersApplied.selectedColumn || "";
+  });
+  const [selectedSort, setSelectedSort] = useState(() => {
+    return filtersApplied.selectedSort || "";
+  });
+
+  useEffect(()=>{
+    assetFilter(selectedAssetName,selectedHostname,selectedCriticality,selectedHosting,selectedIp,selectedUrl,isAssetTested, selectedColumn, selectedSort);
+  },[selectedAssetName,selectedHostname,selectedCriticality,selectedHosting,selectedIp,selectedUrl,isAssetTested, selectedColumn,selectedSort])
+
+  var { filterDropdown,loading} = useSelector((state) => ({
+    filterDropdown: state.FilterDropdown?.filterDropdown,
+    loading: state.FilterDropdown.loading,
+  }));
+
+  useEffect(() => {
+    if(filterDropdown?.data) {
+      console.log('filterDropdown?.data', filterDropdown?.data)
+      let hostNameDropdown = objectToArray(filterDropdown.data.hostname_dropdown);
+      setHostnameOptions(hostNameDropdown);
+
+      // let criticalityDropdown = ['High', 'Medium', 'Low'];
+
+      let ipDropdown = objectToArray(filterDropdown.data.ip_dropdown);
+      setIpOptions(ipDropdown);
+
+
+      let assetUrlDropdown = objectToArray(filterDropdown.data.web_app_url_dropdown);
+      setAssetUrlOptions(assetUrlDropdown);
+
+      let assetName = objectToArray(filterDropdown.data.asset_name_dropdown);
+      setAssetNameOptions(assetName);
+    }
+  }, [filterDropdown]);
+
+  const initialValues = {
+    assetNames:[],
+    hostNames:[],
+    criticalities:[],
+    hosting:[],
+    ips:[],
+    assetUrls:[],
+    isAssetTested:'In',
+    column: "",
+    sort: "",
+  };
+
+  const [form, setForm] = useState(initialValues);
+
+  const setField = (field, value) => {
+    setForm({
+      ...form,
+      [field]: value,
+    });
+
+  };
+
+  const handleSubmit = (e) => {
+      e.preventDefault();
+      let unPackedAssetNames = selectedAssetName.map((assetName) => {
+        return assetName.label;
+      });
+
+      let unPackedHostnames = selectedHostname.map((item) => {
+        return item.value;
+      });
+
+      let unPackedCriticalities = selectedCriticality.map((item) => {
+        return item.value;
+      });
+
+      let unPackedHosting = selectedHosting.map((item) => {
+        return item.value;
+      });
+
+      let unPackedIps = selectedIp.map((ip) => {
+        return ip.value;
+      });
+
+      let unPackedUrls = selectedUrl.map((item) => {
+        return item.value;
+      });
+
+      var filtersArr = {
+        selectedAssetName:selectedAssetName,
+        selectedHostname:selectedHostname,
+        selectedCriticality:selectedCriticality,
+        selectedHosting:selectedHosting,
+        selectedIp:selectedIp, 
+        selectedUrl:selectedUrl,
+        isAssetTested:isAssetTested,
+        selectedColumn: selectedColumn,
+        selectedSort: selectedSort,
+      }
+
+      form.assetNames = unPackedAssetNames;
+      form.hostNames = unPackedHostnames;
+      form.criticalities = unPackedCriticalities;
+      form.ips = unPackedIps;
+      form.assetUrls = unPackedUrls;
+      form.isAssetTested = isAssetTested;
+      form.hosting = unPackedHosting;
+      
+      console.log('filtersArr', filtersArr);
+      localStorage.setItem('assetFilters', JSON.stringify(filtersArr))
+
+      form.page = 1;
+      form.size = 10;
+      form.clientIds = clientIds
+      dispatch(assetViewListRequest(form))
+  };
+
+  console.log('isAssetTested', isAssetTested)
+  const onClear = (e) => {
+    e.preventDefault();
+    localStorage.removeItem('assetFilters')
+    setSelectedAssetName([]);
+    setSelectedHostname([]);
+    setSelectedCriticality([]);
+    setSelectedHosting([]);
+    setSelectedIp([]);
+    setSelectedUrl([]);
+    setIsAssetTested([]);
+    setSelectedColumn("");
+    setSelectedSort("");
+    let data = {
+      'page':1,
+      'size':10
+    }
+    dispatch(assetViewListRequest(data));
+  };
+  console.log('selectedIp', selectedIp)
+  return (
+    <Offcanvas
+      direction="end"
+      isOpen={show}
+      id="offcanvasExample"
+      toggle={onCloseClick}
+    >
+      <OffcanvasHeader className="bg-light" toggle={onCloseClick}>
+        Asset Filters
+      </OffcanvasHeader>
+      <form onSubmit={handleSubmit} className="d-flex flex-column justify-content-end h-100">
+        <OffcanvasBody style={{overflowY: 'scroll', height: '500px'}}>
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={3}>
+                <Label
+                    htmlFor="choices-text-input"
+                    className="form-label"
+                  >
+                    Solution Name
+                </Label>
+              </Col>
+              <Col lg={9}>
+                <ReactSelect
+                  isMulti={true}
+                  onChange={(selectedOption) =>{
+                    setField("assetNames", selectedOption);
+                    setSelectedAssetName(selectedOption);
+                  }}
+                  options={assetNameOptions?.map((option,value) => {
+                    return { value: option.key, label: option.value };
+                  })}
+                  value={selectedAssetName}
+                />
+              </Col>
+            </Row>
+          </div>
+
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={3}>
+                <Label
+                    htmlFor="choices-text-input"
+                    className="form-label"
+                  >
+                    Hostname
+                </Label>
+              </Col>
+              <Col lg={9}>
+                <ReactSelect
+                  isMulti={true}
+                  onChange={(selectedOption) =>{
+                    setField("hostNames", selectedOption);
+                    setSelectedHostname(selectedOption);
+                  }}
+                  options={hostnameOptions?.map((option,value) => {
+                    return { value: option.key, label: option.value };
+                  })}
+                  value={selectedHostname}
+                />
+              </Col>
+            </Row>
+          </div>
+
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={3}>
+                <Label
+                    htmlFor="choices-text-input"
+                    className="form-label"
+                  >
+                    Criticality
+                </Label>
+              </Col>
+              <Col lg={9}>
+                <ReactSelect
+                  isMulti={true}
+                  name="criticalities"
+                  onChange={(selectedOption) =>{
+                    setField("criticalities", selectedOption);
+                    setSelectedCriticality(selectedOption);
+                  }}
+                  options={criticalityOptions?.map((option,value) => {
+                    return { value: option.label, label: option.value };
+                  })}
+                  value={selectedCriticality}
+                />
+              </Col>
+            </Row>
+          </div>
+
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={3}>
+                <Label
+                    htmlFor="choices-text-input"
+                    className="form-label"
+                  >
+                    Hosting
+                </Label>
+              </Col>
+              <Col lg={9}>
+                <ReactSelect
+                  isMulti={true}
+                  name="hosting"
+                  onChange={(selectedOption) =>{
+                    setField("hosting", selectedOption);
+                    setSelectedHosting(selectedOption);
+                  }}
+                  options={hostingOptions?.map((option,value) => {
+                    return { value: option.value, label: option.label };
+                  })}
+                  value={selectedHosting}
+                />
+              </Col>
+            </Row>
+          </div>
+          
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={3}>
+                <Label
+                    htmlFor="choices-text-input"
+                    className="form-label"
+                  >
+                    IPs
+                </Label>
+              </Col>
+              <Col lg={9}>
+                <ReactSelect
+                  isMulti={true}
+                  onChange={(selectedOption) =>{
+                    setField("ips", selectedOption);
+                    setSelectedIp(selectedOption);
+                  }}
+                  options={ipOptions?.map((option,value) => {
+                    return { value: option.value, label: option.value };
+                  })}
+                  value={selectedIp}
+                />
+              </Col>
+            </Row>
+          </div>
+
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={3}>
+                <Label
+                    className="form-label"
+                  >
+                    URLs
+                </Label>
+              </Col>
+              <Col lg={9}>
+                <ReactSelect
+                  isMulti={true}
+                  onChange={(selectedOption) =>{
+                    setField("assetUrls", selectedOption);
+                    setSelectedUrl(selectedOption);
+                  }}
+                  options={assetUrlOptions?.map((option,value) => {
+                    return { value: option.value, label: option.value };
+                  })}
+                  value={selectedUrl}
+                />
+              </Col>
+            </Row>
+          </div>
+
+          {/* <div className="mb-4">
+          <Row className="g-2">
+              
+              <Col lg={12}>
+                <div className="form-check form-switch">
+                    <Input className="form-check-input" type="checkbox" role="switch" name="isAssetTested" id="isAssetTested" value={isAssetTested} 
+                    onChange={(e) =>{
+                      console.log('e.target.checked', e.target.checked)
+                      if(e.target.checked){
+                        setField("isAssetTested", "In")
+                        setIsAssetTested("In");
+                      }else{
+                        setField("isAssetTested", "NotIn")
+                        setIsAssetTested("NotIn");
+                      }
+                    }}
+                    checked={isAssetTested === 'In' ? true : false}  />
+                    <Label className="form-check-label" htmlFor="isAssetTested">Is Asset Tested</Label>
+                </div>
+              </Col>
+            </Row>
+          </div> */}
+
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={6}>
+                <Label htmlFor="choices-text-input" className="form-label">
+                  Column
+                </Label>
+                <div className="input-group">
+                  <select
+                    className="form-select"
+                    name="column"
+                    onChange={(e) => {
+                      // console.log("hihihihi",e.target.value)
+                      setField("column", e.target.value);
+                      setSelectedColumn(e.target.value);
+                    }}
+                    value={selectedColumn}
+                    id="inputGroupSelect01"
+                  >
+                    <option>Choose...</option>
+                    <option value="high">High Count</option>
+                    <option value="medium">Medium Count</option>
+                    <option value="low">Low Count</option>
+                    <option value="total">Open Issue Count</option>
+                   
+                  </select>
+                </div>
+              </Col>
+              <Col lg={6}>
+                <Label htmlFor="choices-text-input" className="form-label">
+                  Sort
+                </Label>
+                <div className="input-group">
+                  <select
+                    className="form-select"
+                    name="sort"
+                    onChange={(e) => {
+                      setField("sort", e.target.value);
+                      setSelectedSort(e.target.value);
+                    }}
+                    value={selectedSort}
+                    id="inputGroupSelect01"
+                  >
+                    <option>Choose...</option>
+                    <option value="ASC">Ascending</option>
+                    <option value="DESC">Descending</option>
+                  </select>
+                </div>
+              </Col>
+            </Row>
+          </div>
+         
+          <div className="mb-2">
+            <Row className="g-2">
+              <Col lg={6}>
+                <button
+                  className="btn btn-light w-100"
+                  onClick={onClear}
+                >
+                  Clear Filter
+                </button>
+                </Col>
+                <Col lg={6}>
+                <button
+                  type="submit"
+                  className="btn btn-success w-100"
+                >
+                  Filter
+                </button>
+              </Col>
+            </Row>
+          </div>
+        </OffcanvasBody>
+      </form>
+    </Offcanvas>
+  );
+};
+
+export default Filter;

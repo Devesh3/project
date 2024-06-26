@@ -1,0 +1,257 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use App\Helpers\CommonFunction;
+use Illuminate\Support\Facades\Log;
+
+class GenerateReports extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'generate:reports {report} {user_id} {client_ids} {request_id=na} {assessment_type=na} {current_owner=na} {filename=na} {send_as_attachment=na}';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Command description';
+
+    /**
+     * Execute the console command.
+     *
+     * @return int
+     */
+    public function handle()
+    {
+        $user_id = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('user_id'));
+        $client_ids = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('client_ids'));
+        $report = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('report'));
+        $request_id = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('request_id'));
+        $current_owner = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('current_owner'));
+        $assessment_type = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('assessment_type'));
+        $filename = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('filename'));
+        $send_as_attachment = preg_replace('/[^a-zA-Z0-9_.() -]/', '_',  $this->argument('send_as_attachment'));
+
+        if ($client_ids == '_') {
+            $client_ids = '';
+        }
+        // echo config('global.report_export')['findings-export'];
+        // echo $report;
+        // echo $report;
+        $excel = '';
+        if ($report == config('global.report_export')['request-tracker']) {
+            // $excel = CommonFunction::commandExportTracker($user_id, $client_ids);
+            $excel = CommonFunction::commandRequestsTrackerExport($user_id, $client_ids);
+        } elseif ($report == config('global.report_export')['issues-tracker']) {
+            $excel = CommonFunction::commandExportIssueTracker($user_id, $client_ids);
+        } elseif ($report == config('global.report_export')['open-points']) {
+            $excel = CommonFunction::commandExportOpenPoints($user_id, $client_ids, $request_id, $assessment_type, $current_owner, $filename, $send_as_attachment);
+        } elseif ($report == config('global.report_export')['clone-open-points']) {
+            $excel = CommonFunction::commandExportCloneOpenPoints($user_id, $client_ids, $request_id, $assessment_type, $current_owner, $filename, $send_as_attachment);
+        } elseif ($report == config('global.report_export')['request-list-download']) {
+            $excel = CommonFunction::commandRequestsListExport($user_id, $client_ids);
+        } elseif ($report == config('global.report_export')['asset-list-download']) {
+            $excel = CommonFunction::commandAssetListExport($user_id, $client_ids);
+        } elseif ($report == config('global.report_export')['asset-findings-list-download']) {
+            $excel = CommonFunction::commandAssetFindingListExport($user_id, $client_ids, $request_id);
+        } elseif ($report == config('global.report_export')['findings-export']) {
+            $excel = CommonFunction::commandExportRequestFindings($user_id, $client_ids, $request_id);
+        } elseif ($report == config('global.report_export')['request-export']) {
+            $excel = CommonFunction::commandExportRequest($user_id, $client_ids, $request_id);
+        } elseif ($report == config('global.report_export')['excel-dashboard']) {
+            $excel = CommonFunction::commandExportDashboard($user_id, $client_ids);
+        } elseif ($report == 'spoc_wise_summary') {
+            $excel = CommonFunction::commandUserWiseSummary($user_id, $client_ids);
+        } elseif ($report == 'application_wise_summary') {
+            $excel = CommonFunction::commandApplicationWiseSummary($user_id, $client_ids);
+        } elseif ($report == config('global.report_export')['va-issues-download']) {
+            $excel = CommonFunction::commandVaIssueExport($user_id, $client_ids, $request_id);
+        } elseif ($report == 'bulk_upload_in_background') {
+            // Log::channel('custom')->info('from here'.$user_id.'-'.$client_ids.'-'.$request_id.'-'.$assessment_type.'-'.$filename);
+            // $assessment_type is assessment_type_id here
+            $excel = CommonFunction::commandBackgroundBulkUploadFindings($user_id, $client_ids, $request_id, $assessment_type, $filename);
+        } elseif ($report == 'create_rad_request') {
+            $excel = CommonFunction::createRadRequest($request_id, $user_id);
+        } elseif ($report == 'change_category_tag') {
+            $grouped_findings = \App\Models\RequestFinding::selectRaw("count(request_findings.id), asset_tag, id")->groupBy('asset_tag')->get();
+            foreach ($grouped_findings as $key => $value) {
+                $asset = \App\Models\Asset::find($value->asset_tag);
+                if (is_object($asset)) {
+                    \Illuminate\Support\Facades\DB::beginTransaction();
+                    \Illuminate\Support\Facades\DB::table('request_findings')->where('asset_tag', $value->asset_tag)->update(['category_tag' => $asset->asset_type]);
+                    \Illuminate\Support\Facades\DB::commit();
+                }
+            }
+            dd(count($grouped_findings));
+        } elseif ($report == 'run_migration') {
+            $excel = CommonFunction::commandRequestMigration($user_id, '');
+        } elseif ($report == config('global.report_export')['category-findings']) {
+            $excel = CommonFunction::commandExportCategoryFindings($user_id, $client_ids, $request_id, $assessment_type, $current_owner, $filename, $send_as_attachment);
+        } else {
+            /*$excel = 0;
+            $all_request = \App\Models\RequestMaster::get();
+            if(count($all_request)){
+                foreach ($all_request as $key => $value) {
+                    $user_id_arr=[];
+                    $req_id = $value->id;
+                    if(count($value->delegateUsers)){
+                        // dd($value->delegateUsers);
+                        $all_delegation = $value->delegateUsers;
+                        foreach ($all_delegation as $k => $v) {
+                            //dd($v->id);
+                            $user_id_arr[] = $v->id;
+                        }
+                        if(count($all_delegation)){
+                            $imp_val = implode(";",$user_id_arr);
+                            $value->delegated_users = $imp_val;
+                            $value->save();
+                        }else{
+                            continue;
+                        }
+                    }else{
+                        continue;
+                    }
+                }
+                $excel = 1;
+            }*/
+        }
+        if ($excel == 1) {
+            echo 'Excel';
+        } else {
+            echo 'error';
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    public function exportAssetList(Request $request)
+    {
+        $exe_path = config('global.php_exe_path');
+        $artisan = config('global.abs_path') . '/artisan';
+        $filterArr = [];
+        if (!empty($request->clientIds)) {
+            $client_ids = str_replace(",", "_", $request->get('clientIds'));
+        } else {
+            $client_ids = '_';
+        }
+        $user_id = auth()->user()->id;
+        $report = config('global.report_export')['asset-list-download'];
+        // echo $process->getOutput();
+        $xlsx_location = config('global.abs_path') . '/storage/app/reports_download';
+        if (!file_exists($xlsx_location)) {
+            mkdir($xlsx_location);
+        }
+        $xlsx_location = config('global.abs_path') . '/storage/app/reports_download/' . $user_id;
+        if (!file_exists($xlsx_location)) {
+            mkdir($xlsx_location);
+        }
+        $xlsx_location = $xlsx_location . '/' . config('global.report_export')['asset-list-download'];
+        if (file_exists($xlsx_location)) {
+            unlink($xlsx_location);
+        }
+        $cmd = $exe_path . ' ' . $artisan . ' generate:reports ' . $report . ' ' . $user_id . ' ' . $client_ids . '';
+        if (substr(php_uname(), 0, 7) == "Windows") {
+            pclose(popen("start /B " . $cmd, "r"));
+        } else {
+            exec($cmd . " > /dev/null &");
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    public static function commandAssetListExport($user_id, $client_ids)
+    {
+        $filterArr = [];
+        $searchArr = [];
+        if (!empty($client_ids)) {
+            $searchArr['filter_clients_arr_findings'] = $filterArr['filter_clients_arr'] = explode("_", $client_ids);
+        }
+        if (is_null(auth()->user())) {
+            $user_obj = User::find($user_id);
+            $searchArr['user_obj'] = $filterArr['user_obj'] = $user_obj;
+        }
+        $searchArr['is_tested'] = "In";
+        $searchArr['for-asset-list'] = true;
+        $assets = self::findAllAssets($searchArr);
+        $rows_style = (new \OpenSpout\Common\Entity\Style\Style())
+            ->setFontSize(10);
+        // dd($open_points[0]->toArray());
+        // $chunks = $open_points->chunk(10000);
+        $sheet_arr = [];
+        // foreach($chunks as $id => $chunk) {
+        $id = time();
+        ini_set('memory_limit', '-1');
+        $export = (new \Rap2hpoutre\FastExcel\FastExcel($assets))->export('asset_list.xlsx', function ($each_asset) {
+            return [
+                'Asset Type' => $each_asset->asset_type_name,
+                'Asset Name' => $each_asset->solution_name,
+                'Description' => $each_asset->short_description,
+                'Asset Criticality' => $each_asset->asset_criticality,
+                'Hostname' => $each_asset->hostname,
+                'IP Address' => $each_asset->ip_address,
+                'Application Url' => $each_asset->web_app_url,
+                'Os Name' => $each_asset->os_name,
+                'Os Version' => $each_asset->os_version,
+                'Db Name' => $each_asset->db_name,
+                'Db Version' => $each_asset->db_version,
+                'Location' => $each_asset->location,
+                'Live' => $each_asset->asset_live,
+                'Internet Facing' => $each_asset->asset_internet_facing,
+                'Contains Privacy Info' => $each_asset->asset_contains_privacy_info,
+                'Asset Team' => $each_asset->asset_team,
+                'High Count' => $each_asset->high,
+                'Medium Count' => $each_asset->medium,
+                'Low Count' => $each_asset->low,
+                'Open Issue Count' => $each_asset->total,
+
+
+
+            ];
+        });
+        $excel = Storage::disk('local')->put('/reports_download/' . $user_id . '/asset_list.xlsx', file_get_contents($export));
+        return 1;
+    }
+
+
+
+
+
+
