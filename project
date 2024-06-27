@@ -1,2 +1,324 @@
 hello
 sd
+
+Changes Overview
+Add functionality to download filtered data in the Asset.js file.
+Ensure the Filter.js updates the parent component with the filtered data.
+Updated Asset.js
+First, ensure you have react-csv installed. If not, you can install it using:
+
+bash
+Copy code
+npm install react-csv
+Here is the updated Asset.js:
+-------------------------------------------------------------------------------------------------------------------------
+jsx
+Copy code
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Table } from "reactstrap";
+import { assetViewListRequest } from "../../store/actions";
+import { CSVLink } from "react-csv"; // Added for CSV download
+
+const Asset = () => {
+  const dispatch = useDispatch();
+  const [filteredData, setFilteredData] = useState([]);
+  const { assets, loading } = useSelector((state) => state.Assets);
+
+  useEffect(() => {
+    // Fetch initial data on component mount
+    dispatch(assetViewListRequest({ page: 1, size: 10 }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    // Update data when assets change (e.g., after filtering)
+    setFilteredData(assets);
+  }, [assets]);
+
+  const headers = [
+    { label: "Asset Name", key: "assetName" },
+    { label: "Hostname", key: "hostname" },
+    { label: "Criticality", key: "criticality" },
+    { label: "Hosting", key: "hosting" },
+    { label: "IP", key: "ip" },
+    { label: "Asset URL", key: "assetUrl" },
+    // Add more headers as needed
+  ];
+
+  return (
+    <div>
+      <h2>Asset Management</h2>
+      {/* CSVLink to download filtered data */}
+      <CSVLink
+        data={filteredData}
+        headers={headers}
+        filename={"filtered_assets.csv"}
+        className="btn btn-primary mb-2"
+        target="_blank"
+      >
+        Download Filtered Data
+      </CSVLink>
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <Table striped bordered hover>
+          <thead>
+            <tr>
+              <th>Asset Name</th>
+              <th>Hostname</th>
+              <th>Criticality</th>
+              <th>Hosting</th>
+              <th>IP</th>
+              <th>Asset URL</th>
+              {/* Add more headers as needed */}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((asset) => (
+              <tr key={asset.id}>
+                <td>{asset.assetName}</td>
+                <td>{asset.hostname}</td>
+                <td>{asset.criticality}</td>
+                <td>{asset.hosting}</td>
+                <td>{asset.ip}</td>
+                <td>{asset.assetUrl}</td>
+                {/* Render more columns as needed */}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </div>
+  );
+};
+
+export default Asset;
+
+----------------------------------------------------------------------------------------------------
+
+Updated Filter.js
+Ensure the filter component updates the parent with the applied filters.
+
+jsx
+Copy code
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import ReactSelect from "react-select";
+import {
+  Offcanvas,
+  OffcanvasHeader,
+  OffcanvasBody,
+  Label,
+  Row,
+  Col,
+} from "reactstrap";
+import { assetFilterDropdownList, assetViewListRequest } from "../../store/actions"; // Ensure both actions are imported
+
+const Filter = ({ show, onCloseClick, assetFilter }) => {
+  const dispatch = useDispatch();
+
+  const [clientIds, setClientIds] = useState(() => {
+    return JSON.parse(localStorage.getItem("clientIds")) || [];
+  });
+
+  const [filtersApplied, setFiltersApplied] = useState(() => {
+    return JSON.parse(localStorage.getItem("assetFilters")) || {};
+  });
+
+  useEffect(() => {
+    dispatch(assetFilterDropdownList(`?clientIds=${clientIds}`));
+  }, [clientIds, dispatch]);
+
+  const [assetNameOptions, setAssetNameOptions] = useState([]);
+  const [hostnameOptions, setHostnameOptions] = useState([]);
+  const [criticalityOptions] = useState([
+    { label: "Critical", value: "Critical" },
+    { label: "Other", value: "Other" },
+  ]);
+  const [hostingOptions] = useState([
+    { label: "Internet", value: 0 },
+    { label: "Intranet", value: 1 },
+    { label: "Other", value: 2 },
+  ]);
+  const [ipOptions, setIpOptions] = useState([]);
+  const [assetUrlOptions, setAssetUrlOptions] = useState([]);
+
+  const [selectedAssetName, setSelectedAssetName] = useState(
+    filtersApplied.selectedAssetName || []
+  );
+  const [selectedHostname, setSelectedHostname] = useState(
+    filtersApplied.selectedHostname || []
+  );
+  const [selectedCriticality, setSelectedCriticality] = useState(
+    filtersApplied.selectedCriticality || []
+  );
+  const [selectedHosting, setSelectedHosting] = useState(
+    filtersApplied.selectedHosting || []
+  );
+  const [selectedIp, setSelectedIp] = useState(filtersApplied.selectedIp || []);
+  const [selectedUrl, setSelectedUrl] = useState(
+    filtersApplied.selectedUrl || []
+  );
+  const [isAssetTested, setIsAssetTested] = useState(
+    filtersApplied.isAssetTested || "In"
+  );
+  const [selectedColumn, setSelectedColumn] = useState(
+    filtersApplied.selectedColumn || ""
+  );
+  const [selectedSort, setSelectedSort] = useState(
+    filtersApplied.selectedSort || ""
+  );
+
+  useEffect(() => {
+    assetFilter(
+      selectedAssetName,
+      selectedHostname,
+      selectedCriticality,
+      selectedHosting,
+      selectedIp,
+      selectedUrl,
+      isAssetTested,
+      selectedColumn,
+      selectedSort
+    );
+  }, [
+    selectedAssetName,
+    selectedHostname,
+    selectedCriticality,
+    selectedHosting,
+    selectedIp,
+    selectedUrl,
+    isAssetTested,
+    selectedColumn,
+    selectedSort,
+    assetFilter,
+  ]);
+
+  const { filterDropdown, loading } = useSelector((state) => ({
+    filterDropdown: state.FilterDropdown?.filterDropdown,
+    loading: state.FilterDropdown.loading,
+  }));
+
+  useEffect(() => {
+    if (filterDropdown?.data) {
+      const objectToArray = (dropdown) =>
+        Object.entries(dropdown).map(([key, value]) => ({ key, value }));
+      setHostnameOptions(objectToArray(filterDropdown.data.hostname_dropdown));
+      setIpOptions(objectToArray(filterDropdown.data.ip_dropdown));
+      setAssetUrlOptions(objectToArray(filterDropdown.data.web_app_url_dropdown));
+      setAssetNameOptions(objectToArray(filterDropdown.data.asset_name_dropdown));
+    }
+  }, [filterDropdown]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const filtersArr = {
+      selectedAssetName,
+      selectedHostname,
+      selectedCriticality,
+      selectedHosting,
+      selectedIp,
+      selectedUrl,
+      isAssetTested,
+      selectedColumn,
+      selectedSort,
+    };
+
+    localStorage.setItem("assetFilters", JSON.stringify(filtersArr));
+
+    const form = {
+      assetNames: selectedAssetName.map((asset) => asset.value),
+      hostNames: selectedHostname.map((host) => host.value),
+      criticalities: selectedCriticality.map((crit) => crit.value),
+      hosting: selectedHosting.map((host) => host.value),
+      ips: selectedIp.map((ip) => ip.value),
+      assetUrls: selectedUrl.map((url) => url.value),
+      isAssetTested,
+      column: selectedColumn,
+      sort: selectedSort,
+      page: 1,
+      size: 10,
+      clientIds,
+    };
+
+    dispatch(assetViewListRequest(form));
+  };
+
+  const onClear = (e) => {
+    e.preventDefault();
+    localStorage.removeItem("assetFilters");
+    setSelectedAssetName([]);
+    setSelectedHostname([]);
+    setSelectedCriticality([]);
+    setSelectedHosting([]);
+    setSelectedIp([]);
+    setSelectedUrl([]);
+    setIsAssetTested("In");
+    setSelectedColumn("");
+    setSelectedSort("");
+    dispatch(assetViewListRequest({ page: 1, size: 10, clientIds }));
+  };
+
+  return (
+    <Offcanvas direction="end" isOpen={show} id="offcanvasExample" toggle={onCloseClick}>
+      <OffcanvasHeader className="bg-light" toggle={onCloseClick}>
+        Asset Filters
+      </OffcanvasHeader>
+      <form onSubmit={handleSubmit} className="d-flex flex-column justify-content-end h-100">
+        <OffcanvasBody style={{ overflowY: "scroll", height: "500px" }}>
+          {/* Solution Name */}
+          <div className="mb-4">
+            <Row className="g-2">
+              <Col lg={3}>
+                <Label htmlFor="choices-text-input" className="form-label">
+                  Solution Name
+                </Label>
+              </Col>
+              <Col lg={9}>
+                <ReactSelect
+                  isMulti
+                  onChange={setSelectedAssetName}
+                  options={assetNameOptions.map((option) => ({ value: option.key, label: option.value }))}
+                  value={selectedAssetName}
+                />
+              </Col>
+            </Row>
+          </div>
+
+          {/* Other filter fields here similar to the Solution Name */}
+
+          {/* Clear and Apply buttons */}
+          <div className="mb-2">
+            <Row className="g-2">
+              <Col lg={6}>
+                <button className="btn btn-light w-100" onClick={onClear}>
+                  Clear Filter
+                </button>
+              </Col>
+              <Col lg={6}>
+                <button type="submit" className="btn btn-success w-100">
+                  Filter
+                </button>
+              </Col>
+            </Row>
+          </div>
+        </OffcanvasBody>
+      </form>
+    </Offcanvas>
+  );
+};
+
+export default Filter;
+
+
+-------------------------------------------------------------------------------------------------
+Summary of Changes
+Asset.js:
+
+Added a CSVLink component for downloading filtered data as CSV.
+Filter.js:
+
+Updated to store filter selections and use them to fetch filtered data.
+Ensured the component applies and clears filters correctly.
+These changes should enable you to filter data and download the filtered results as a CSV file, preserving your existing functionality.
