@@ -1,0 +1,171 @@
+import React from "react";
+import {
+    CardBody,
+    CardHeader,
+} from "reactstrap";
+import SimpleBar from 'simplebar-react';
+
+const OpenVulnerabilities = ({ openVulnerabilitiesData }) => {
+
+    function percentage(partialValue, totalValue) {
+        return (100 * partialValue) / totalValue;
+    }
+
+    function relDiff(a, b) {
+        if (a === 0 && b === 0) {
+            return 0
+        } else {
+            return 100 * Math.round((a - b) / ((a + b) / 2));
+        }
+    }
+    let Data1 = 0;
+    let Data2 = 0;
+    let Data3 = 0;
+    let Data4 = 0;
+    let Data5 = 0;
+    let style1 = '';
+    let style2 = '';
+    let style3 = '';
+    let style4 = '';
+    let style5 = '';
+    let totalCurrent = 0;
+    let totalPrev = 0;
+    let total = 0;
+    if (openVulnerabilitiesData?.Server) {
+
+        totalCurrent = openVulnerabilitiesData.Server.current + (openVulnerabilitiesData['Network'] ? openVulnerabilitiesData['Network'].current : 0) + openVulnerabilitiesData.Application.current + openVulnerabilitiesData['Security Device'].current;
+
+        totalPrev = openVulnerabilitiesData.Server.prev + (openVulnerabilitiesData['Network'] ? openVulnerabilitiesData['Network'].prev : 0) + openVulnerabilitiesData.Application.prev + openVulnerabilitiesData['Security Device'].prev;
+
+        total = parseInt(openVulnerabilitiesData.Server.total) + parseInt( openVulnerabilitiesData['Network'] ?  openVulnerabilitiesData['Network'].total : 0) + parseInt(openVulnerabilitiesData.Application.total) + parseInt(openVulnerabilitiesData['Security Device'].total);
+
+        Data5 = relDiff(totalPrev, totalCurrent)
+        if (Data5 < 0) {
+            style5 = 'danger';
+        } else if (Data5 > 0) {
+            style5 = 'success';
+        } else {
+            style5 = 'warning';
+        }
+
+        Data1 = relDiff(openVulnerabilitiesData.Server.prev, openVulnerabilitiesData.Server.current)
+        if (Data1 < 0) {
+            style1 = 'danger';
+        } else if (Data1 > 0) {
+            style1 = 'success';
+        } else {
+            style1 = 'warning';
+        }
+        Data2 = relDiff((openVulnerabilitiesData['Network'] ? openVulnerabilitiesData['Network'].prev : 0), (openVulnerabilitiesData['Network'] ? openVulnerabilitiesData['Network'].current : 0))
+        if (Data2 < 0) {
+            style2 = 'danger';
+        } else if (Data2 > 0) {
+            style2 = 'success';
+        } else {
+            style2 = 'warning';
+        }
+        Data3 = relDiff(openVulnerabilitiesData.Application.prev, openVulnerabilitiesData.Application.current)
+        if (Data3 < 0) {
+            style3 = 'danger';
+        } else if (Data3 > 0) {
+            style3 = 'success';
+        } else {
+            style3 = 'warning';
+        }
+        Data4 = relDiff(openVulnerabilitiesData['Security Device'].prev, openVulnerabilitiesData['Security Device'].current)
+        if (Data4 < 0) {
+            style4 = 'danger';
+        } else if (Data4 > 0) {
+            style4 = 'success';
+        } else {
+            style4 = 'warning';
+        }
+    }
+
+    // console.log('Data1', Data1)
+    // console.log('Data2', Data2)
+    // console.log('Data3', Data3)
+    // console.log('Data4', Data4)
+    // console.log('Data5', Data5)
+    return (
+        <React.Fragment>
+            <CardHeader className="align-items-center d-flex">
+                <h4 className="card-title mb-0 flex-grow-1">Open Vulnerabilities across all asset</h4>
+            </CardHeader>
+
+            <CardBody>
+            <SimpleBar forceVisible="y" autoHide={true} className="simplebar-track-primary" style={{ maxHeight: "260px" }}>
+                <ul className="list-group list-group-flush border-dashed mb-0">
+
+                    <li className="list-group-item d-flex align-items-center">
+                        <div className="flex-grow-1 ms-3">
+                            <h6 className="fs-14 mb-1">Total Vulnerabilities</h6>
+                            {/* <p className="text-muted mb-0">Change Since Last Week</p> */}
+                        </div>
+                        <div className="flex-shrink-0 text-end">
+                            <h6 className="fs-14 mb-1">{total}</h6>
+                            {/* <p className={"fs-12 mb-0 text-" + style5}>
+                                {Data5 === 0 ? 0 : Data5 < 0 ? '+' + Math.abs(Data5) : Data5 > 0 ? '-' + Math.abs(Data5) : Math.abs(Data5)}%
+                            </p> */}
+                        </div>
+                    </li>
+
+                    <li className="list-group-item d-flex align-items-center">
+                        <div className="flex-grow-1 ms-3">
+                            <h6 className="fs-14 mb-1">Vulnerabilities on servers</h6>
+                            {/* <p className="text-muted mb-0">Change Since Last Week</p> */}
+                        </div>
+                        <div className="flex-shrink-0 text-end">
+                            <h6 className="fs-14 mb-1">{openVulnerabilitiesData?.Server?.total ? openVulnerabilitiesData?.Server?.total : 0}</h6>
+                            {/* <p className={"fs-12 mb-0 text-" + style1}>
+                                {Data1 === 0 ? 0 : Data1 < 0 ? '+' + Math.abs(Data1) : Data1 > 0 ? '-' + Math.abs(Data1) : Math.abs(Data1)}%
+                            </p> */}
+                        </div>
+                    </li>
+
+                    <li className="list-group-item d-flex align-items-center">
+                        <div className="flex-grow-1 ms-3">
+                            <h6 className="fs-14 mb-1">Vulnerabilities on Network Device</h6>
+                            {/* <p className="text-muted mb-0">Change Since Last Week</p> */}
+                        </div>
+                        <div className="flex-shrink-0 text-end">
+                            <h6 className="fs-14 mb-1">{(openVulnerabilitiesData['Network'] ? openVulnerabilitiesData['Network']?.total : 0)}</h6>
+                            {/* <p className={"fs-12 mb-0 text-" + style2}>
+                                {Data2 === 0 ? 0 : Data2 < 0 ? '+' + Math.abs(Data2) : Data2 > 0 ? '-' + Math.abs(Data2) : Math.abs(Data2)}%
+                            </p> */}
+                        </div>
+                    </li>
+
+                    <li className="list-group-item d-flex align-items-center">
+                        <div className="flex-grow-1 ms-3">
+                            <h6 className="fs-14 mb-1">Vulnerabilities on Application</h6>
+                            {/* <p className="text-muted mb-0">Change Since Last Week</p> */}
+                        </div>
+                        <div className="flex-shrink-0 text-end">
+                            <h6 className="fs-14 mb-1">{openVulnerabilitiesData['Application']?.total ? openVulnerabilitiesData['Application']?.total : 0}</h6>
+                            {/* <p className={"fs-12 mb-0 text-" + style3}>
+                                {Data3 === 0 ? 0 : Data3 < 0 ? '+' + Math.abs(Data3) : Data3 > 0 ? '-' + Math.abs(Data3) : Math.abs(Data3)}%
+                            </p> */}
+                        </div>
+                    </li>
+
+                    {/* <li className="list-group-item d-flex align-items-center">
+                        <div className="flex-grow-1 ms-3">
+                            <h6 className="fs-14 mb-1">Vulnerabilities on Security Device</h6>
+                            <p className="text-muted mb-0">Change Since Last Week</p>
+                        </div>
+                        <div className="flex-shrink-0 text-end">
+                            <h6 className="fs-14 mb-1">{openVulnerabilitiesData['Security Device']?.total}</h6>
+                            <p className={"fs-12 mb-0 text-" + style4}>
+                                {Data4 === 0 ? 0 : Data4 < 0 ? '+' + Math.abs(Data4) : Data4 > 0 ? '-' + Math.abs(Data4) : Math.abs(Data4)}%
+                            </p>
+                        </div>
+                    </li> */}
+                </ul>
+            </SimpleBar>
+            </CardBody>
+        </React.Fragment>
+    );
+};
+
+export default OpenVulnerabilities;
